@@ -1,6 +1,7 @@
 # 2048 AI Solver
 
-**CS 4100 — Artificial Intelligence | Northeastern University**
+**CS 4100 — Artificial Intelligence | Northeastern University**  
+
 **Team:** Brandon Zau, Jonathan Wang, Nicolas Tang, Daniel Wan
 
 ## Abstract
