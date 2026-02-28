@@ -11,10 +11,9 @@ The challenge lies in making optimal sequential decisions under uncertainty — 
 
 This project explores and compares multiple AI approaches to playing 2048, all built from scratch:
 
-- **Expectimax Search** — models the game as alternating max (player) and chance (random tile) nodes with a heuristic evaluation function
-- **Heuristic Design** — custom board evaluation using features such as monotonicity, smoothness, empty cell count, and corner positioning
-- **Genetic Algorithms** — evolves optimal weights for the heuristic evaluation function across generations of simulated gameplay
-- **Monte Carlo Tree Search** — uses random playouts to estimate move quality without full tree expansion
+- **Baseline Agent** — a baseline agent implemented through greedy or random (does not count towards an actual AI approach)
+- **Local Search** — models the game as alternating max (player) and chance (random tile) nodes with a heuristic evaluation function
+- **Heuristic Search** — custom board evaluation using features such as monotonicity, smoothness, empty cell count, and corner positioning
 - **Reinforcement Learning** *(stretch goal)* — formulates the game as an MDP and trains a policy via Q-learning
 
 Each approach is benchmarked over hundreds of games against baseline agents (random and greedy) using metrics including average score, max tile distribution, and win rate (% reaching 2048).
@@ -29,12 +28,11 @@ Each approach is benchmarked over hundreds of games against baseline agents (ran
 
 ..... To Be Implemented ...
 ├── agents/
-│   ├── random_agent.py  # Baseline: random valid moves
-│   ├── greedy_agent.py  # Baseline: highest immediate score
-│   ├── expectimax.py    # Expectimax search agent
-│   ├── mcts.py          # Monte Carlo Tree Search agent
-│   └── genetic.py       # Genetic algorithm for heuristic weight optimization
+│   ├── baseline.py      # Baseline: random valid moves/highest immediate score
+│   ├── localsearch.py   # local search agent
 ├── heuristics.py        # Board evaluation functions
+├── reinforcement.py     # reinforcement learning agent
+
 ├── benchmark.py         # Run agents and collect performance metrics
 ├── main.py              # Entry point
 └── README.md
