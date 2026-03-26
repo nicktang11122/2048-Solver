@@ -22,18 +22,21 @@ Each approach is benchmarked over hundreds of games against baseline agents (ran
 
 ```
 ..... Current Structure .....
-├── game2048.py          # Game engine (Pygame GUI + headless mode)
 ├── 2048plan.txt         # our current plan of attack for game2048.py written in psuedo code
+├── game.py              # Game engine (Pygame GUI + headless mode)
+├── main.py              #main method/file to run the game
+├── requirements.txt     #local environment dependecies
+
+├── local_search.py              #nick: a local search approach to 2048
+├── reinforcement_learning.py    #brandon: a reinforcement learning approach to 2048 using Gymansium and Q_learning
+├── adversial_search.py          #jonathan: using expectminimax approach to 2048
+└── README.md
+
 
 
 ..... To Be Implemented ...
 ├── agents/
 │   ├── baseline.py      # Baseline: random valid moves/highest immediate score
-│   ├── localsearch.py   # local search agent
-├── heuristics.py        # Board evaluation functions
-├── reinforcement.py     # reinforcement learning agent
 
 ├── benchmark.py         # Run agents and collect performance metrics
-├── main.py              # Entry point
-└── README.md
 ```
