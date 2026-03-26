@@ -14,7 +14,7 @@ This project explores and compares multiple AI approaches to playing 2048, all b
 - **Baseline Agent** — a baseline agent implemented through greedy or random (does not count towards an actual AI approach)
 - **Local Search** — models the game as alternating max (player) and chance (random tile) nodes with a heuristic evaluation function
 - **Adversial Search** — implement expectiminimax or alpha-beta pruning
-- **Reinforcement Learning** *(stretch goal)* — formulates the game as an MDP and trains a policy via Q-learning
+- **Reinforcement Learning** — formulates the game as an MDP and trains a policy via Q-learning
 
 Each approach is benchmarked over hundreds of games against baseline agents (random and greedy) using metrics including average score, max tile distribution, and win rate (% reaching 2048).
 
