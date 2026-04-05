@@ -89,7 +89,7 @@ def _chance_node(board, depth):
             weight = tile_prob / num_empty
 
             # After tile spawns, its the player's turn again
-            expected_value = weight * expectimax(new_board, depth - 1, is_max_node=True)
+            expected_value += weight * expectimax(new_board, depth - 1, is_max_node=True)
 
     return expected_value
 
