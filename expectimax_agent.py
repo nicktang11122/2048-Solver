@@ -1,6 +1,7 @@
 import numpy as np
 
-# Heuristic Evaluation  
+# Heuristic Features
+
 def count_empty(board):
     """More empty cells = more room to maneuver"""
     return np.count_nonzero(board == 0)
@@ -11,15 +12,110 @@ def corner_max(board):
     corners = [board[0][0], board[0][3], board[3][0], board[3][3]]
     return max_tile if max_tile in corners else 0
 
-def evaluate(board):
-    """Simple heuristic: weighted combination of features
-    Weights are hand-tuned for now
+def monotonicity(board):
+    """Measures how consistently tile values increase/decrease along
+    rows and columns. Higher = more monotonic = better.
+    For each row and column, check both directions (increasing and decreasing)
+    and take the better one. We use log2 of tile values so that the difference
+    in higher tiles isn't weighted more heavily than the difference in lower tiles.
     """
-    w_empty = 10.0
-    w_corner = 5.0
 
-    return (w_empty * count_empty(board) +
-            w_corner * corner_max(board))
+    log_board = np.zeros_like(board, dtype=float)
+    mask = board > 0
+    log_board[mask] = np.log2(board[mask])
+
+    score = 0
+    for i in range(4):
+        # row i check left to right vs right to left
+        row_inc = 0
+        row_dec = 0
+
+        for j in range(3):
+            diff = log_board[i][j + 1] - log_board[i][j]
+            if diff > 0:
+                row_dec -= diff
+            elif diff < 0:
+                row_inc -= (-diff)
+        
+        # col i check top to bottom vs bottom to top
+        col_inc = 0
+        col_dec = 0
+        for j in range(3):
+            diff = log_board[j + 1][i] - log_board[j][i]
+            if diff > 0:
+                col_dec -= diff
+            elif diff < 0:
+                col_inc -= (-diff)
+        
+        # take the less penalized direction for each
+        score += max(row_inc, row_dec)
+        score += max(col_inc, col_dec)
+    
+    return score
+
+def smoothness(board):
+    """Measures how similar adjacent tiles are. Lower difference between
+    neighbors = smoother = tiles more likely to merge.
+
+    Returns a negative value (sum of negative differences), so higher
+    (closer to 0) is better.
+    """
+    log_board = np.zeros_like(board, dtype=float)
+    mask = board > 0
+    log_board[mask] = np.log2(board[mask])
+
+    score = 0
+    for i in range(4):
+        for j in range(4):
+            if log_board[i][j] == 0:
+                continue
+            
+            # check right neighbor
+            if j + 1 < 4 and log_board[i][j + 1] > 0:
+                score -= abs(log_board[i][j] - log_board[i][j + 1])
+            # check down neighbor
+            if i + 1 < 4 and log_board[i + 1][j] > 0:
+                score -= abs(log_board[i][j] - log_board[i + 1][j])
+
+    return score
+
+def snake_score(board):
+    """Dot product of board values with a snake weight matrix. Rewards
+    keeping large tiles in a carner with values flowing outward in a snake pattern.
+    """
+    weights = np.array([
+        [2**15, 2**14, 2**13, 2**12],
+        [2**8,  2**9,  2**10, 2**11],
+        [2**7,  2**6,  2**5,  2**4],
+        [2**0,  2**1,  2**2,  2**3],
+    ])
+    return np.sum(board * weights)
+
+def merge_potential(board):
+    """Count adjacent equal tiles (pairs that could merge)"""
+    count = 0
+    for i in range(4):
+        for j in range(4):
+            if board[i][j] == 0:
+                continue
+            if j + 1 < 4 and board[i][j] == board[i][j + 1]:
+                count += 1
+            if i + 1 < 4 and board[i][j] == board[i + 1][j]:
+                count += 1
+
+    return count
+
+# Evaluation
+def evaluate(board):
+    """Weighted combination of all heuristic features.
+    """
+    return (10.0 * count_empty(board)
+            +  5.0  * corner_max(board)
+            +  3.0  * monotonicity(board)
+            +  2.0  * smoothness(board)
+            +  1.0  * snake_score(board)
+            +  5.0  * merge_potential(board)
+            )
 
 # Expectimax Search 
 def expectimax(board, depth, is_max_node):
