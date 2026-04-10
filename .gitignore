@@ -1,2 +1,15 @@
 *.vscode
 *__pycache__
+
+# macOS
+.DS_Store
+
+# Generated model weights
+models/
+
+# Generated training logs
+logs/
+
+# Python
+*.pyc
+*.pyo
