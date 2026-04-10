@@ -75,7 +75,7 @@ def train(
     train_log_path = os.path.join(log_dir, f"dqn_training_{timestamp}.csv")
     log_f, log_writer = _open_csv(
         train_log_path,
-        ['episode', 'score', 'max_tile', 'steps', 'epsilon', 'loss', 'buffer_size', 'total_steps'],
+        ['episode', 'score', 'max_tile', 'steps', 'episode_reward', 'epsilon', 'loss', 'buffer_size', 'total_steps'],
     )
     print(f"Training log  -> {train_log_path}")
 
@@ -86,6 +86,7 @@ def train(
         for episode in range(1, n_episodes + 1):
             game.reset()
             steps = 0
+            episode_reward = 0.0
 
             while not game.game_over and steps < max_steps:
                 valid_moves = game.get_valid_moves()
@@ -106,6 +107,7 @@ def train(
                 if game.game_over:
                     reward -= 1.0
 
+                episode_reward += reward
                 agent.store(board_before, action, reward, game.board, game.game_over)
                 loss = agent.train_step()
                 if loss is not None:
@@ -120,6 +122,7 @@ def train(
                 game.score,
                 int(np.max(game.board)),
                 steps,
+                round(episode_reward, 4),
                 round(agent.epsilon, 6),
                 round(last_loss, 6) if last_loss is not None else '',
                 len(agent.replay_buffer),
