@@ -6,6 +6,7 @@ class Game2048:
     def __init__(self):
         self.board = np.zeros((4, 4), dtype=int)
         self.score = 0
+        self.moves = 0
         self.game_over = False
         self._spawn_tile()
         self._spawn_tile()
@@ -13,6 +14,7 @@ class Game2048:
     def reset(self):
         self.board = np.zeros((4, 4), dtype=int)
         self.score = 0
+        self.moves = 0
         self.game_over = False
         self._spawn_tile()
         self._spawn_tile()
@@ -131,6 +133,7 @@ class Game2048:
 
         self.board = new_board
         self.score += score_gained
+        self.moves += 1
         spawn_pos = self._spawn_tile()
         self.game_over = not self._has_valid_moves()
         return True, tile_moves, spawn_pos
