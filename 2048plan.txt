@@ -1,0 +1,381 @@
+pseudo-code for the game engine
+
+import time
+import pygame
+import numpy as np
+import random
+
+class Game2048:
+    def __init__(self, GUI=True, render_delay_sec=0.1, grid_size=4):
+        # ============================================
+        # CONSTANTS
+        # ============================================
+        # self.grid_size = grid_size          # default 4x4
+        # self.cell_size = 100                # pixel size per tile
+        # self.screen_size = grid_size * cell_size
+        # self.fps = 60
+        # self.sleep_time = render_delay_sec
+
+        # ============================================
+        # COLOR / TILE VISUAL MAPPING
+        # ============================================
+        # self.tile_colors = {
+        #     0:    (empty tile color),
+        #     2:    (light color),
+        #     4:    (slightly darker),
+        #     8:    (orange-ish),
+        #     16:   ...
+        #     32:   ...
+        #     64:   ...
+        #     128:  ...
+        #     256:  ...
+        #     512:  ...
+        #     1024: ...
+        #     2048: (gold / bright),
+        #     4096+: (fallback dark color)
+        # }
+        # self.background_color = ...
+        # self.grid_color = ...
+        # self.text_color_light = ...   # for low-value tiles
+        # self.text_color_dark = ...    # for high-value tiles
+
+        # ============================================
+        # GAME STATE
+        # ============================================
+        # self.grid = np.zeros((grid_size, grid_size), dtype=int)  # 0 = empty
+        # self.score = 0
+        # self.done = False              # True when no valid moves remain
+        # self.won = False               # True when 2048 tile is reached
+        # self.move_history = []         # list of (direction, grid_snapshot, score) for undo/replay
+
+        # ============================================
+        # INITIALIZE BOARD — spawn 2 random tiles
+        # ============================================
+        # self._spawn_tile()
+        # self._spawn_tile()
+
+        # ============================================
+        # INITIALIZE GUI (if enabled)
+        # ============================================
+        # if GUI:
+        #     pygame.init()
+        #     self.screen = pygame.display.set_mode(...)
+        #     pygame.display.set_caption("2048")
+        #     self.clock = pygame.time.Clock()
+        #     self._refresh()
+        # else:
+        #     self.screen = None
+        #     self.clock = None
+
+    # ================================================================
+    # PUBLIC: execute() — single interface for AI agents
+    # ================================================================
+    def execute(self, command='export'):
+        """
+        Primary interface for interacting with the game.
+        
+        Args:
+            command (str): one of 'up', 'down', 'left', 'right', 'export', 'undo'
+        
+        Returns:
+            tuple: (grid_copy, score, done, won, moved)
+                - grid_copy: np.array copy of current board
+                - score: int current total score
+                - done: bool, True if no moves left (game over)
+                - won: bool, True if 2048 tile exists
+                - moved: bool, True if the board changed from this action
+        """
+        # moved = False
+        #
+        # if command == 'export':
+        #     pass  # just return current state, no action
+        #
+        # elif command in ['up', 'down', 'left', 'right']:
+        #     # save snapshot for undo/history
+        #     # old_grid = self.grid.copy()
+        #     # old_score = self.score
+        #
+        #     # attempt the move
+        #     # moved = self._move(command)
+        #
+        #     # if board changed:
+        #     #     self.move_history.append((command, old_grid, old_score))
+        #     #     self._spawn_tile()
+        #     #     self._check_game_over()
+        #     #     self._check_win()
+        #
+        #     # if GUI: self._refresh()
+        #
+        # elif command == 'undo':
+        #     # if self.move_history:
+        #     #     _, prev_grid, prev_score = self.move_history.pop()
+        #     #     self.grid = prev_grid
+        #     #     self.score = prev_score
+        #     #     self.done = False
+        #     #     moved = True
+        #     # if GUI: self._refresh()
+        #
+        # return self.grid.copy(), self.score, self.done, self.won, moved
+        pass
+
+    # ================================================================
+    # PUBLIC: helper methods available to AI agents
+    # ================================================================
+    def get_available_moves(self):
+        """
+        Returns list of valid moves that would change the board.
+        AI agents can use this to avoid wasted moves.
+        
+        Returns:
+            list[str]: e.g. ['up', 'left', 'down']
+        """
+        # available = []
+        # for direction in ['up', 'down', 'left', 'right']:
+        #     sim_grid = self.grid.copy()
+        #     if self._simulate_move(sim_grid, direction):
+        #         available.append(direction)
+        # return available
+        pass
+
+    def get_max_tile(self):
+        """Returns the highest tile value on the board."""
+        # return np.max(self.grid)
+        pass
+
+    def get_empty_cells(self):
+        """
+        Returns list of (row, col) positions that are empty.
+        
+        Returns:
+            list[tuple]: e.g. [(0, 2), (3, 1), ...]
+        """
+        # return list(zip(*np.where(self.grid == 0)))
+        pass
+
+    def clone_state(self):
+        """
+        Returns a deep copy of the current game state.
+        Useful for AI agents doing lookahead / tree search.
+        
+        Returns:
+            dict: {grid, score, done, won}
+        """
+        # return {
+        #     'grid': self.grid.copy(),
+        #     'score': self.score,
+        #     'done': self.done,
+        #     'won': self.won
+        # }
+        pass
+
+    def load_state(self, state):
+        """
+        Restores game state from a clone_state() dict.
+        
+        Args:
+            state (dict): previously saved state
+        """
+        # self.grid = state['grid'].copy()
+        # self.score = state['score']
+        # self.done = state['done']
+        # self.won = state['won']
+        pass
+
+    # ================================================================
+    # PRIVATE: core game mechanics
+    # ================================================================
+    def _move(self, direction):
+        """
+        Execute a move in the given direction. Slides and merges tiles.
+        
+        Args:
+            direction (str): 'up', 'down', 'left', 'right'
+        
+        Returns:
+            bool: True if the board changed, False otherwise
+        
+        Approach:
+            - Normalize: rotate the grid so that every move becomes a "left" slide
+            - Slide and merge one row at a time
+            - Rotate back to original orientation
+            - Compare with old grid to determine if anything changed
+        """
+        # old_grid = self.grid.copy()
+        #
+        # ROTATION MAP:
+        #   'left'  -> 0 rotations
+        #   'up'    -> 1 clockwise rotation  (or 3 counter-clockwise)
+        #   'right' -> 2 rotations
+        #   'down'  -> 3 clockwise rotations (or 1 counter-clockwise)
+        #
+        # rotated = np.rot90(self.grid, k=rotation_amount)
+        #
+        # for each row in rotated:
+        #     new_row = self._slide_and_merge(row)
+        #     replace row in rotated with new_row
+        #
+        # self.grid = np.rot90(rotated, k=-rotation_amount)  # rotate back
+        #
+        # return not np.array_equal(old_grid, self.grid)
+        pass
+
+    def _slide_and_merge(self, row):
+        """
+        Slide all nonzero values to the left, then merge adjacent equal tiles.
+        
+        Example:
+            [2, 0, 2, 4] -> slide -> [2, 2, 4, 0] -> merge -> [4, 4, 0, 0]
+        
+        Args:
+            row (np.array): single row of the grid
+        
+        Returns:
+            np.array: the row after sliding and merging
+        """
+        # Step 1: Remove zeros (compact non-zero tiles to the left)
+        # filtered = row[row != 0]
+        #
+        # Step 2: Merge adjacent equal tiles (left to right, each tile merges once)
+        # merged = []
+        # skip = False
+        # for i in range(len(filtered)):
+        #     if skip:
+        #         skip = False
+        #         continue
+        #     if i + 1 < len(filtered) and filtered[i] == filtered[i + 1]:
+        #         merged.append(filtered[i] * 2)
+        #         self.score += filtered[i] * 2   # <-- add merge value to score
+        #         skip = True
+        #     else:
+        #         merged.append(filtered[i])
+        #
+        # Step 3: Pad with zeros on the right
+        # merged += [0] * (len(row) - len(merged))
+        #
+        # return np.array(merged)
+        pass
+
+    def _simulate_move(self, grid, direction):
+        """
+        Simulates a move on a COPY of the grid without modifying game state.
+        Used by get_available_moves() and AI lookahead.
+        
+        Returns:
+            bool: True if the move would change the grid
+        """
+        # Same logic as _move() but operates on the passed-in grid
+        # Does NOT update self.score or self.grid
+        pass
+
+    def _spawn_tile(self):
+        """
+        Place a new tile (2 or 4) on a random empty cell.
+        90% chance of 2, 10% chance of 4 (standard 2048 rules).
+        """
+        # empty = self.get_empty_cells()
+        # if not empty:
+        #     return
+        # row, col = random.choice(empty)
+        # self.grid[row, col] = 2 if random.random() < 0.9 else 4
+        pass
+
+    def _check_game_over(self):
+        """
+        Sets self.done = True if no valid moves remain.
+        Game is over when: no empty cells AND no adjacent tiles can merge.
+        """
+        # if len(self.get_empty_cells()) > 0:
+        #     self.done = False
+        #     return
+        # if len(self.get_available_moves()) > 0:
+        #     self.done = False
+        #     return
+        # self.done = True
+        pass
+
+    def _check_win(self):
+        """Sets self.won = True if any tile >= 2048."""
+        # self.won = np.any(self.grid >= 2048)
+        pass
+
+    # ================================================================
+    # PRIVATE: rendering (Pygame GUI)
+    # ================================================================
+    def _refresh(self):
+        """Redraws the entire board — background, grid, tiles, score."""
+        # self.screen.fill(background_color)
+        # self._draw_grid()
+        # self._draw_tiles()
+        # self._draw_score()
+        # pygame.display.flip()
+        # self.clock.tick(self.fps)
+        # time.sleep(self.sleep_time)
+        pass
+
+    def _draw_grid(self):
+        """Draws the grid lines / cell borders."""
+        # for each cell position:
+        #     draw rounded rectangle background
+        pass
+
+    def _draw_tiles(self):
+        """Draws each tile with its value and color."""
+        # for i in range(grid_size):
+        #     for j in range(grid_size):
+        #         value = self.grid[i, j]
+        #         if value == 0:
+        #             draw empty tile
+        #         else:
+        #             color = self.tile_colors.get(value, fallback_color)
+        #             draw filled rectangle with color
+        #             render text (str(value)) centered in cell
+        #             use light text for tiles <= 4, dark text for tiles > 4
+        pass
+
+    def _draw_score(self):
+        """Renders the current score above or below the grid."""
+        # render self.score as text
+        pass
+
+    # ================================================================
+    # PRIVATE: manual play loop (for testing / demo)
+    # ================================================================
+    def _loop_gui(self):
+        """Main loop for manual keyboard play."""
+        # running = True
+        # while running:
+        #     for event in pygame.event.get():
+        #         if event.type == QUIT:
+        #             running = False
+        #         elif event.type == KEYDOWN:
+        #             if event.key == K_UP:    self.execute('up')
+        #             if event.key == K_DOWN:  self.execute('down')
+        #             if event.key == K_LEFT:  self.execute('left')
+        #             if event.key == K_RIGHT: self.execute('right')
+        #             if event.key == K_u:     self.execute('undo')
+        #             if event.key == K_e:     self.execute('export')
+        #
+        #     self._refresh()
+        #
+        # pygame.quit()
+        pass
+
+    # ================================================================
+    # PRIVATE: utility / debug
+    # ================================================================
+    def _print_grid(self):
+        """Pretty-prints the grid to console for debugging."""
+        # for row in self.grid:
+        #     print(' '.join(f'{cell:5}' for cell in row))
+        # print(f'Score: {self.score}')
+        # print()
+        pass
+
+
+# ================================================================
+# Main entry point — manual play mode
+# ================================================================
+if __name__ == "__main__":
+    game = Game2048(GUI=True, render_delay_sec=0.1, grid_size=4)
+    # game._print_grid()
+    # game._loop_gui()
