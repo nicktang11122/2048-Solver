@@ -18,25 +18,22 @@ This project explores and compares multiple AI approaches to playing 2048, all b
 
 Each approach is benchmarked over hundreds of games against baseline agents (random and greedy) using metrics including average score, max tile distribution, and win rate (% reaching 2048).
 
-## Repository Structure (TBD)
+## Repository Structure
 
 ```
-..... Current Structure .....
-├── 2048plan.txt         # our current plan of attack for game2048.py written in psuedo code
-├── game.py              # Game engine (Pygame GUI + headless mode)
-├── main.py              #main method/file to run the game
-├── requirements.txt     #local environment dependecies
-
-├── local_search.py              #nick: a local search approach to 2048
-├── reinforcement_learning.py    #brandon: a reinforcement learning approach to 2048 using Gymansium and Q_learning
-├── adversial_search.py          #jonathan: using expectminimax approach to 2048
+├── game.py                  # Core 2048 game engine (board logic, move validation, scoring)
+├── main.py                  # Pygame GUI — play manually or watch any agent via --ai flag
+│
+├── expectimax_agent.py      # Expectimax agent with heuristic evaluation
+├── run_expectimax.py        # Train/benchmark the expectimax agent
+│
+├── rl_agent.py              # Tabular Q-learning agent (state bucketing, harmonic decay)
+├── dqn_agent.py             # Deep Q-Network agent (replay buffer, target network)
+├── run_rl.py                # Train and benchmark the tabular RL agent
+├── run_dqn.py               # Train and benchmark the DQN agent (CSV logging, checkpoints)
+├── watch_rl.py              # Watch a trained DQN or tabular RL agent play in real time
+├── rl_analysis.py           # Generate training reward curve and action heatmap plots
+│
+├── requirements.txt         # Python dependencies
 └── README.md
-
-
-
-..... To Be Implemented ...
-├── agents/
-│   ├── baseline.py      # Baseline: random valid moves/highest immediate score
-
-├── benchmark.py         # Run agents and collect performance metrics
 ```

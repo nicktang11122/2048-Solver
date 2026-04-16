@@ -1,0 +1,4 @@
+episode,score,max_tile,steps,episode_reward,epsilon,loss,buffer_size,total_steps
+1,960,128,100,4.1413,0.505,,100,100
+2,328,32,60,1.478,0.01,,160,160
+3,756,64,100,3.5185,0.01,,260,260
