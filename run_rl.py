@@ -1,4 +1,5 @@
 import argparse
+import time
 import numpy as np
 from game import Game2048
 from rl_agent import QLearningAgent
@@ -118,6 +119,7 @@ def play_game(agent, max_steps=5000):
     """Run one greedy game with the trained agent. Returns stats dict."""
     game = Game2048()
     steps = 0
+    total_move_time = 0.0
 
     while not game.game_over and steps < max_steps:
         valid_moves = game.get_valid_moves()
@@ -126,16 +128,20 @@ def play_game(agent, max_steps=5000):
 
         saved_eps = agent.epsilon
         agent.epsilon = 0.0
+        t0 = time.perf_counter()
         action = agent.select_action(game.board, valid_moves)
+        total_move_time += time.perf_counter() - t0
         agent.epsilon = saved_eps
 
         game.step(action)
         steps += 1
 
+    avg_ms = (total_move_time / steps * 1000) if steps > 0 else 0.0
     return {
-        'score':    game.score,
-        'max_tile': int(np.max(game.board)),
-        'steps':    steps,
+        'score':           game.score,
+        'max_tile':        int(np.max(game.board)),
+        'steps':           steps,
+        'avg_ms_per_move': round(avg_ms, 3),
     }
 
 
@@ -151,16 +157,19 @@ def benchmark(agent, n_games=50):
             f"  Game {i+1:>3}/{n_games} | "
             f"Score: {stats['score']:>7,} | "
             f"Max tile: {stats['max_tile']:>5} | "
-            f"Steps: {stats['steps']:>4}"
+            f"Steps: {stats['steps']:>4} | "
+            f"Avg ms/move: {stats['avg_ms_per_move']:>6.3f}"
         )
 
-    scores    = [r['score']    for r in results]
-    max_tiles = [r['max_tile'] for r in results]
-    steps     = [r['steps']    for r in results]
+    scores    = [r['score']           for r in results]
+    max_tiles = [r['max_tile']        for r in results]
+    steps     = [r['steps']           for r in results]
+    ms_moves  = [r['avg_ms_per_move'] for r in results]
 
     print(f"\nRESULTS — {n_games} greedy games")
     print(f"  Score    — mean: {np.mean(scores):>8,.0f}  median: {np.median(scores):>8,.0f}  std: {np.std(scores):>8,.0f}")
     print(f"  Steps    — mean: {np.mean(steps):>6.0f}  median: {np.median(steps):>6.0f}")
+    print(f"  Time     — mean: {np.mean(ms_moves):>6.3f} ms/move")
 
     tile_counts = {}
     for t in max_tiles:

@@ -1,5 +1,9 @@
-import pygame
+import argparse
 import sys
+import time
+
+import pygame
+
 from game import Game2048
 
 # ------------------------------------------------------------------ #
@@ -140,6 +144,124 @@ def ease_out(t):
 
 
 # ------------------------------------------------------------------ #
+# Agent watch mode                                                     #
+# ------------------------------------------------------------------ #
+
+DIRECTION_NAMES = {0: 'LEFT', 1: 'RIGHT', 2: 'UP', 3: 'DOWN'}
+
+
+def watch_agent(agent, delay_ms=300):
+    """Run the pygame window with an agent playing autonomously.
+
+    Works with any agent that implements:
+        select_action(board, valid_moves) -> int
+
+    Args:
+        agent:    a trained DQNAgent or QLearningAgent instance
+        delay_ms: milliseconds between agent moves (default 300, lower = faster)
+    """
+    pygame.init()
+    screen = pygame.display.set_mode((WINDOW_W, WINDOW_H))
+    pygame.display.set_caption("2048 — Agent")
+
+    font_large = pygame.font.SysFont("Arial", 42, bold=True)
+    font_small = pygame.font.SysFont("Arial", 30, bold=True)
+    font_ui    = pygame.font.SysFont("Arial", 48, bold=True)
+    font_sm    = pygame.font.SysFont("Arial", 20, bold=True)
+    font_title = pygame.font.SysFont("Arial", 72, bold=True)
+
+    game  = Game2048()
+    clock = pygame.time.Clock()
+
+    anim_t       = 1.0
+    anim_tiles   = []
+    game_over_at = None
+    last_move_ms = pygame.time.get_ticks()
+    last_action  = None
+
+    GAME_OVER_DELAY = 2000
+
+    # Force greedy play — works for both DQN (epsilon attr) and tabular
+    if hasattr(agent, 'epsilon'):
+        agent.epsilon = 0.0
+
+    while True:
+        now = pygame.time.get_ticks()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+                    game.reset()
+                    anim_t = 1.0
+                    anim_tiles = []
+                    game_over_at = None
+                    last_move_ms = now
+                    last_action  = None
+                # Speed controls: UP/DOWN arrow keys adjust delay
+                if event.key == pygame.K_UP:
+                    delay_ms = max(50, delay_ms - 50)
+                if event.key == pygame.K_DOWN:
+                    delay_ms = min(2000, delay_ms + 50)
+
+        # Agent takes a move once per delay_ms, only when animation is done
+        if (not game.game_over
+                and anim_t >= 1.0
+                and now - last_move_ms >= delay_ms):
+            valid_moves = game.get_valid_moves()
+            if valid_moves:
+                last_action = agent.select_action(game.board, valid_moves)
+                valid, tile_moves, _ = game.step(last_action)
+                if valid:
+                    anim_tiles = [
+                        cell_pos(fr, fc) + cell_pos(tr, tc) + (val,)
+                        for fr, fc, tr, tc, val in tile_moves
+                    ]
+                    anim_t = 0.0
+                    if game.game_over and game_over_at is None:
+                        game_over_at = now
+            last_move_ms = now
+
+        # Advance animation
+        if anim_t < 1.0:
+            anim_t = min(1.0, anim_t + ANIM_SPEED)
+
+        t = ease_out(anim_t)
+
+        # --- Render ---
+        screen.fill(BG_COLOR)
+        draw_header(screen, game.score, font_ui, font_sm)
+        draw_grid_bg(screen)
+
+        if anim_t < 1.0:
+            for px0, py0, px1, py1, val in anim_tiles:
+                x = int(px0 + (px1 - px0) * t)
+                y = int(py0 + (py1 - py0) * t)
+                draw_tile(screen, val, x, y, font_large, font_small)
+        else:
+            for r in range(4):
+                for c in range(4):
+                    if game.board[r][c] != 0:
+                        draw_tile(screen, game.board[r][c], *cell_pos(r, c), font_large, font_small)
+
+        # HUD: last action + speed
+        action_str = DIRECTION_NAMES.get(last_action, '—')
+        hud = font_sm.render(
+            f"Action: {action_str:<5}  Speed: {delay_ms}ms  (↑↓ to adjust, R = reset)",
+            True, (150, 140, 130)
+        )
+        screen.blit(hud, (GRID_PAD, HEADER_H - 20))
+
+        if game.game_over and game_over_at is not None and now - game_over_at >= GAME_OVER_DELAY:
+            draw_game_over(screen, game.score, font_title, font_ui, font_sm)
+
+        pygame.display.flip()
+        clock.tick(60)
+
+
+# ------------------------------------------------------------------ #
 # Main loop                                                            #
 # ------------------------------------------------------------------ #
 
@@ -225,4 +347,32 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="2048 — play manually or watch an agent")
+    parser.add_argument("--agent", choices=["dqn", "rl"], default=None,
+                        help="Watch a trained agent play (dqn or rl)")
+    parser.add_argument("--model", type=str, default="models/dqn_final.pth",
+                        help="Path to saved DQN model weights (default: models/dqn_final.pth)")
+    parser.add_argument("--delay", type=int, default=300,
+                        help="Milliseconds between agent moves (default: 300)")
+    args = parser.parse_args()
+
+    if args.agent == "dqn":
+        import torch
+        from dqn_agent import DQNAgent
+        agent = DQNAgent()
+        agent.online_net.load_state_dict(torch.load(args.model))
+        agent.target_net.load_state_dict(agent.online_net.state_dict())
+        print(f"Loaded DQN model from {args.model}")
+        watch_agent(agent, delay_ms=args.delay)
+
+    elif args.agent == "rl":
+        # Tabular agent has no saved weights — must be retrained or passed in
+        # For demo purposes, train briefly so the window opens immediately
+        from rl_agent import QLearningAgent
+        print("Note: tabular RL agent has no saved model — launching with untrained agent.")
+        print("For best results, train first via run_rl.py and pass the agent object directly.")
+        agent = QLearningAgent()
+        watch_agent(agent, delay_ms=args.delay)
+
+    else:
+        main()

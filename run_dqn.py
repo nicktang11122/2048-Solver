@@ -1,13 +1,14 @@
 import argparse
 import csv
 import os
+import time
 from datetime import datetime
 
 import numpy as np
 import torch
 
 from game import Game2048
-from dqn_agent import DQNAgent
+from dqn_agent import DQNAgent, QNetwork
 
 
 # ================================================================
@@ -161,9 +162,14 @@ def train(
 # ================================================================
 
 def play_game(agent, max_steps=5000):
-    """Run one greedy game with the trained agent. Returns stats dict."""
+    """Run one greedy game with the trained agent. Returns stats dict.
+
+    Tracks per-move wall-clock time to compute avg_ms_per_move —
+    the computational cost metric for agent comparison.
+    """
     game = Game2048()
     steps = 0
+    total_move_time = 0.0
 
     saved_eps = agent.epsilon
     agent.epsilon = 0.0
@@ -172,16 +178,20 @@ def play_game(agent, max_steps=5000):
         valid_moves = game.get_valid_moves()
         if not valid_moves:
             break
+        t0 = time.perf_counter()
         action = agent.select_action(game.board, valid_moves)
+        total_move_time += time.perf_counter() - t0
         game.step(action)
         steps += 1
 
     agent.epsilon = saved_eps
 
+    avg_ms = (total_move_time / steps * 1000) if steps > 0 else 0.0
     return {
-        'score':    game.score,
-        'max_tile': int(np.max(game.board)),
-        'steps':    steps,
+        'score':          game.score,
+        'max_tile':       int(np.max(game.board)),
+        'steps':          steps,
+        'avg_ms_per_move': round(avg_ms, 3),
     }
 
 
@@ -199,7 +209,10 @@ def benchmark(agent, n_games=50, log_dir='logs', timestamp=None):
 
     _make_dirs(log_dir)
     bench_path = os.path.join(log_dir, f"dqn_benchmark_{timestamp}.csv")
-    bench_f, bench_writer = _open_csv(bench_path, ['game', 'score', 'max_tile', 'steps'])
+    bench_f, bench_writer = _open_csv(
+        bench_path,
+        ['game', 'score', 'max_tile', 'steps', 'avg_ms_per_move']
+    )
 
     results = []
     print(f"\nEvaluating over {n_games} games (greedy)...\n")
@@ -207,23 +220,29 @@ def benchmark(agent, n_games=50, log_dir='logs', timestamp=None):
     for i in range(n_games):
         stats = play_game(agent)
         results.append(stats)
-        bench_writer.writerow([i + 1, stats['score'], stats['max_tile'], stats['steps']])
+        bench_writer.writerow([
+            i + 1, stats['score'], stats['max_tile'],
+            stats['steps'], stats['avg_ms_per_move']
+        ])
         print(
             f"  Game {i+1:>3}/{n_games} | "
             f"Score: {stats['score']:>7,} | "
             f"Max tile: {stats['max_tile']:>5} | "
-            f"Steps: {stats['steps']:>4}"
+            f"Steps: {stats['steps']:>4} | "
+            f"Avg ms/move: {stats['avg_ms_per_move']:>6.3f}"
         )
 
     bench_f.close()
 
-    scores    = [r['score']    for r in results]
-    max_tiles = [r['max_tile'] for r in results]
-    steps     = [r['steps']    for r in results]
+    scores    = [r['score']           for r in results]
+    max_tiles = [r['max_tile']        for r in results]
+    steps     = [r['steps']           for r in results]
+    ms_moves  = [r['avg_ms_per_move'] for r in results]
 
     print(f"\nRESULTS — {n_games} greedy games")
     print(f"  Score    — mean: {np.mean(scores):>8,.0f}  median: {np.median(scores):>8,.0f}  std: {np.std(scores):>8,.0f}")
     print(f"  Steps    — mean: {np.mean(steps):>6.0f}  median: {np.median(steps):>6.0f}")
+    print(f"  Time     — mean: {np.mean(ms_moves):>6.3f} ms/move")
 
     tile_counts = {}
     for t in max_tiles:
@@ -255,23 +274,29 @@ def main():
     parser.add_argument("--log-dir",     type=str,   default='logs',  help="Directory for CSV logs (default: logs/)")
     parser.add_argument("--model-dir",   type=str,   default='models',help="Directory for saved models (default: models/)")
     parser.add_argument("--save-every",  type=int,   default=10_000,  help="Save model checkpoint every N episodes (default: 10000)")
+    parser.add_argument("--eval-only",   type=str,   default=None,    help="Skip training, load model from path and run benchmark")
     args = parser.parse_args()
 
     agent = DQNAgent()
 
-    print(f"Training DQN for {args.episodes:,} episodes...")
-    agent, timestamp = train(
-        agent,
-        n_episodes=args.episodes,
-        max_steps=args.max_steps,
-        mobility_weight=args.mobility,
-        verbose_every=args.verbose,
-        log_dir=args.log_dir,
-        model_dir=args.model_dir,
-        save_every=args.save_every,
-    )
-
-    benchmark(agent, n_games=args.eval, log_dir=args.log_dir, timestamp=timestamp)
+    if args.eval_only:
+        # Load saved weights and run benchmark only — no training
+        load_model(agent, args.eval_only)
+        print(f"Loaded model from {args.eval_only}")
+        benchmark(agent, n_games=args.eval, log_dir=args.log_dir)
+    else:
+        print(f"Training DQN for {args.episodes:,} episodes...")
+        agent, timestamp = train(
+            agent,
+            n_episodes=args.episodes,
+            max_steps=args.max_steps,
+            mobility_weight=args.mobility,
+            verbose_every=args.verbose,
+            log_dir=args.log_dir,
+            model_dir=args.model_dir,
+            save_every=args.save_every,
+        )
+        benchmark(agent, n_games=args.eval, log_dir=args.log_dir, timestamp=timestamp)
 
 
 if __name__ == "__main__":
