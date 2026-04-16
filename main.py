@@ -3,8 +3,6 @@ import sys
 import argparse
 import random
 import numpy as np
-import pygame
-import time
 from game import Game2048
 
 # ------------------------------------------------------------------ #
